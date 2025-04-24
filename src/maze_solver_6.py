@@ -77,23 +77,23 @@ class Robo:
             # 좌·우 중 넓은 쪽 선택
             dir_ = "left" if d["left"] > d["right"] else "right"
 
-            # 🔸 핑퐁 감지 → 먼저 0.5 s 후진
-            if self.check_pingpong(dir_):
-                self.c.move(forward=False, v=0.15, t=0.5)
+        # 🔸 핑퐁 감지 → 먼저 0.5 s 후진
+        if self.check_pingpong(dir_):
+            self.c.move(forward=False, v=0.15, t=0.5)
 
-            self.c.turn(dir_, w=0.3, t=1.5)
-            # return
+        self.c.turn(dir_, w=0.3, t=1.5)
+        # return
 
-            # ③ 뒤가 막힘(앞은 여유) → 1 s 전진
-            if d["back"] < TH_BLOCK and d["front"] > TH_CLEAR:
-                self.c.move(forward=True, t=1.0); return
+        # ③ 뒤가 막힘(앞은 여유) → 1 s 전진
+        if d["back"] < TH_BLOCK and d["front"] > TH_CLEAR:
+            self.c.move(forward=True, t=1.0); return
 
-            # ④ 왼쪽만 막힘 → 시계방향
-            if d["left"] < TH_BLOCK:
-                self.c.turn("right", t=1.0); return
-            # ⑤ 오른쪽만 막힘 → 반시계방향
-            if d["right"] < TH_BLOCK:
-                self.c.turn("left",  t=1.0); return
+        # ④ 왼쪽만 막힘 → 시계방향
+        if d["left"] < TH_BLOCK:
+            self.c.turn("right", t=1.0); return
+        # ⑤ 오른쪽만 막힘 → 반시계방향
+        if d["right"] < TH_BLOCK:
+            self.c.turn("left",  t=1.0); return
 
     def loop(self):
         while not self.c.ctrl_c:
