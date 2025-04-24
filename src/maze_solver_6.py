@@ -9,13 +9,16 @@ class RobotControl:
         rospy.init_node('robot_control_node', anonymous=True)
         self.pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
         rospy.Subscriber('/scan', LaserScan, self._scan_cb)
-        self.cmd = Twist(); self.scan = LaserScan()
+        self.cmd = Twist(); 
+        self.scan = LaserScan()
         self.rate = rospy.Rate(10)                # 10 Hz
         self.ctrl_c = False
         rospy.on_shutdown(self._shutdown)
         rospy.wait_for_message('/scan', LaserScan)
 
-    def _scan_cb(self, msg): self.scan = msg
+    def _scan_cb(self, msg): 
+        self.scan = msg
+        # print("raw msg:", msg.ranges)
     def _shutdown(self): self.ctrl_c = True; self.stop()
     def ranges(self):      return self.scan.ranges
 
@@ -39,8 +42,14 @@ class RobotControl:
         self._publish_for(t); self.stop()
 
 ### ───────────────── Robo ─────────────────
-SECTOR = {"front":(-25,25), "left":(60,120), "back":(150,210), "right":(240,300)}
-def smin(r, s, e): return min(r[s:]+r[:e]) if s<0 else min(r[s:e])
+
+
+
+# SECTOR = {"front":(-front_index,front_index), "left":(left_index,left_2_index), "back":(back_index,back_2_index), "right":(right_index ,rigth_2_index)}
+
+def smin(r, s, e): 
+    
+    return min(r[s:]+r[:e]) if s>=e else min(r[s:e])
 
 TH_BLOCK=0.30; TH_CLEAR=0.50
 
@@ -65,6 +74,15 @@ class Robo:
         return False
 
     def decide_escape(self):
+        NUM = len(self.c.ranges())
+        def deg2idx(deg): return int(((deg+360) % 360) / 360 * NUM)
+        SECTOR = {
+            "front": (deg2idx(-15), deg2idx(15)),
+            "left":  (deg2idx(75), deg2idx(105)),
+            "right": (deg2idx(255), deg2idx(285)),
+            "back":  (deg2idx(165), deg2idx(195)),
+        }
+        print(SECTOR)
         r = self.c.ranges()
         d = {k: smin(r,*SECTOR[k]) for k in SECTOR}
 
@@ -96,6 +114,10 @@ class Robo:
             self.c.turn("left",  t=1.0); return
 
     def loop(self):
+        # while not rospy.is_shutdown():
+        print(len(self.c.ranges()))
+        #     rospy.loginfo_once("Waiting for first /scan message…")
+        #     # self.c.rate.sleep()
         while not self.c.ctrl_c:
             self.decide_escape()                      # 충돌·회피 판단
             self.c.move(forward=True, t=0.2)          # 평상시 0.2 s 전진

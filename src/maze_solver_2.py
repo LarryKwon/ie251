@@ -12,8 +12,8 @@ class Status(Enum):
     RIGHT = auto()
 
 class MazeSolver:
-    DESIRED_WALL = 0.5   # 오른쪽 벽과의 목표 거리 [m]
-    FRONT_CLEAR  = 0.5      # 정면 턴 임계 [m]
+    DESIRED_WALL = 0.5  # 오른쪽 벽과의 목표 거리 [m]
+    FRONT_CLEAR  = 0.5     # 정면 턴 임계 [m]
     LIN_SPD      = 0.16
     ANG_SPD      = 1.0
 
@@ -93,6 +93,10 @@ class MazeSolver:
         # self.left_range  = mean_deg(90)
         # self.right_range = mean_deg(270)
         # self.front_right_range = mean_deg(315)
+        self.A = ranges[45]
+        self.B = ranges[135]
+        self.C = ranges[215]
+        self.D = ranges[315]
 
         self.front_right_range = mean_dist(315,359)
         self.right_range = mean_dist(247,293)
@@ -130,13 +134,14 @@ class MazeSolver:
         self.cmd.angular.z = angular_speed
 
         duration = angle_rad / angular_speed
-        ticks = int(duration * 10)  # assuming self.rate is 10Hz
+        ticks = int(duration * 11)  # assuming self.rate is 10Hz
 
         rospy.loginfo(f"Turning left 90° over {duration:.2f} seconds")
 
         for _ in range(ticks):
             self.pub.publish(self.cmd)
             self.rate.sleep()
+        
 
         self.stop_robot()
 
@@ -148,7 +153,7 @@ class MazeSolver:
             self.cmd.angular.z = -angular_speed
 
             duration = angle_rad / angular_speed
-            ticks = int(duration * 10)  # assuming self.rate is 10Hz
+            ticks = int(duration * 11)  # assuming self.rate is 10Hz
 
             rospy.loginfo(f"Turning right 90° over {duration:.2f} seconds")
 
@@ -168,6 +173,18 @@ class MazeSolver:
         self.cmd.linear.x = 0.0
         self.cmd.angular.z = 0.0
         self.pub.publish(self.cmd)
+
+    # def turn_left(self):
+    #     self.cmd.linear.x = 0.0
+    #     while not all(range_element >= 0.4 for range_element in self.front_range_array):
+    #         self.cmd.angular.z = 0.1
+    #         self.pub.publish(self.cmd)
+    
+    # def turn_right(self):
+    #     self.cmd.linear.x = 0.0
+    #     while not all(range_element >= 0.4 for range_element in self.front_range_array):
+    #         self.cmd.angular.z = 0.1
+    #         self.pub.publish(self.cmd)
 
     # ---------- 메인 루프 ----------
     def solve_maze(self):
@@ -200,13 +217,15 @@ class MazeSolver:
 
 
             if self.front >= self.FRONT_CLEAR:
-                if all(range_element >= 0.3 for range_element in self.front_range_array):
+                if all(range_element >= 0.4 for range_element in self.front_range_array):
                     self.move_forward()
+                    # print("move_forward", self.front_range_array)
+                    # print(self.A, self.B, self.C, self.D)
             else:
                 if self.right_range > self.left_range:
-                    self.turn_right_90()
+                    self.turn_right()
                 else:
-                    self.turn_left_90()
+                    self.turn_left()
             
             self.pub.publish(self.cmd)
             self.rate.sleep()

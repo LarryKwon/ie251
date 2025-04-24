@@ -30,9 +30,9 @@ class MazeSolver:
     LIN_SPD        = 0.1        # m/s
     ANG_SPD_ALIGN  = 0.2         # rad/s  (정렬용 저속)
     ANG_SPD_TURN   = 1.0         # rad/s  (90° 회전용)
-    FRONT_THRESH   = 0.34        # m  (벽 감지 거리)
-    DIAG_TOL       = 0.02        # m  (대각선 일치 허용값)
-    ALIGN_TOL      = 0.03        # m  (초기 수평 맞춤 허용값)
+    FRONT_THRESH   = 0.28        # m  (벽 감지 거리)
+    DIAG_TOL       = 0.01        # m  (대각선 일치 허용값)
+    ALIGN_TOL      = 0.01        # m  (초기 수평 맞춤 허용값)
     SIDE_NEAR  = 0.18
     SIDE_CLEAR = 0.4
     adjust_history = []
@@ -83,7 +83,9 @@ class MazeSolver:
         # 중심 idx 기준 −half‥+half 인덱스 집합을 mod n 로 래핑
         idxs  = (np.arange(-half, half + 1) + idx) % n
         slc   = np.take(self.ranges, idxs)     # 길이 2·half + 1
-
+        slc = [e for e in slc if not np.isclose(e,0.0)]
+        if len(slc) == 0:
+            raise Exception("zero")
         return np.min(slc)
 
     def mean_deg(self, deg, width=10):
@@ -102,7 +104,9 @@ class MazeSolver:
         # 중심 idx 기준 −half‥+half 인덱스 집합을 mod n 로 래핑
         idxs  = (np.arange(-half, half + 1) + idx) % n
         slc   = np.take(self.ranges, idxs)     # 길이 2·half + 1
-
+        slc = [e for e in slc if not np.isclose(e,0.0)]
+        if len(slc) == 0:
+            raise Exception("zero")
         return np.mean(slc)
 
 
@@ -134,7 +138,7 @@ class MazeSolver:
         # l = self.min_deg(90)
         # r = self.min_deg(270)
         # self.turn_left = l > r
-        # direction = "LEFT" if self.turn_left else "RIGHT"
+        # direction = "LEFTSIDE_NEAR" if self.turn_left else "RIGHT"
         # # rospy.loginfo(f"벽 감지 (front={front:.2f}) → {direction} 90° 회전")
         # self.turn_start = rospy.Time.now()
         # self.phase = Phase.TURN
@@ -160,8 +164,11 @@ class MazeSolver:
 
     # --- Phase 동작 ---
     def do_align(self):
-        dl = self.mean_deg(135,2)
-        dr = self.mean_deg(225,2)
+        try :
+            dl = self.mean_deg(135,2)
+            dr = self.mean_deg(225,2)
+        except:
+            return
         diff = dr - dl                      # + → 오른쪽이 더 멀다
         if abs(diff) < self.ALIGN_TOL:
             rospy.loginfo("↔ 수평 정렬 완료 → FORWARD")
@@ -172,9 +179,12 @@ class MazeSolver:
         self.publish(0.0, ang)
 
     def do_forward(self):
-        front = self.min_deg(0,25)
-        left  = self.min_deg(90,  4)
-        right = self.min_deg(270, 4)
+        try :
+            front = self.min_deg(0,23)
+            left  = self.min_deg(90,  4)
+            right = self.min_deg(270, 4)
+        except:
+            return
         if front > self.FRONT_THRESH:
             if (left < self.SIDE_NEAR) ^ (right < self.SIDE_NEAR):
                 self.stop()
@@ -189,8 +199,11 @@ class MazeSolver:
 
         # 벽 접근 → 정지 후 회전 방향 결정
         self.stop()
-        l = self.min_deg(90)
-        r = self.min_deg(270)
+        try:
+            l = self.min_deg(90)
+            r = self.min_deg(270)
+        except:
+            return
         self.turn_left = l > r
         direction = "LEFT" if self.turn_left else "RIGHT"
         rospy.loginfo(f"벽 감지 (front={front:.2f}) → {direction} 90° 회전")
@@ -212,9 +225,11 @@ class MazeSolver:
     
     def do_avoid(self):
         rospy.loginfo(f"벽에서 멀어지기 {self.turn_left}")
-        left  = self.min_deg(90, 4)
-        right = self.min_deg(270, 4)
-
+        try :
+            left  = self.min_deg(90, 4)
+            right = self.min_deg(270, 4)
+        except:
+            return
         # 회피 회전 방향 (가까운 쪽 반대)
         ang =  self.ANG_SPD_ALIGN if self.turn_left else -self.ANG_SPD_ALIGN
         self.publish(0.05, ang)
@@ -228,13 +243,19 @@ class MazeSolver:
     def do_adjust(self):
         # 좌회전했으면 우상(45)·우하(315), 우회전했으면 좌상(135)·좌하(225)
         if self.turn_left:        # 좌회전 → 오른쪽 대각선 일치
-            upper = self.mean_deg(295,1)
-            lower = self.mean_deg(245,1)
-            ang   = -self.ANG_SPD_ALIGN
+            try:
+                upper = self.mean_deg(298,1)
+                lower = self.mean_deg(248,1)
+                ang   = -self.ANG_SPD_ALIGN
+            except:
+                return
         else:                     # 우회전 → 왼쪽 대각선 일치
-            upper = self.mean_deg(65,1)
-            lower = self.mean_deg(115,1)
-            ang   =  self.ANG_SPD_ALIGN
+            try:
+                upper = self.mean_deg(62,1)
+                lower = self.mean_deg(112,1)
+                ang   =  self.ANG_SPD_ALIGN
+            except:
+                return
         diff = upper - lower
         if abs(diff) < self.DIAG_TOL or self.adjust_count >= 10:
             rospy.loginfo("대각선 보정 완료 → FORWARD")
